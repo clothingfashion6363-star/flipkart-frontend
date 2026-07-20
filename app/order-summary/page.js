@@ -10,6 +10,33 @@ export default function OrderSummaryPage() {
   const { cart, removeFromCart, updateCartQty, cartTotal, cartOriginalTotal, isLoaded, settings } = useAppContext();
   const [address, setAddress] = useState(null);
   const [mounted, setMounted] = useState(false);
+  const [paymentLink, setPaymentLink] = useState(null);
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+
+  const generateLink = async () => {
+    setIsGeneratingLink(true);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const res = await fetch(`${apiUrl}/payment/generate-payment-link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: cartTotal,
+          customerDetails: address || {}
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPaymentLink(data.payment_link_url);
+      } else {
+        alert("Failed to generate link: " + (data.message || "Unknown error"));
+      }
+    } catch (err) {
+      alert("Error generating link");
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -283,27 +310,47 @@ export default function OrderSummaryPage() {
               <span className="text-[12px] text-[#878787] line-through leading-none mb-0.5">₹{cartOriginalTotal.toFixed(2)}</span>
               <span className="text-[20px] font-bold text-[#212121] leading-none">₹{cartTotal.toFixed(2)}</span>
             </div>
-            {/* {settings?.upiGateway === 'cashfree' ? (
-              <CashfreeCheckout 
-                cartTotal={cartTotal} 
-                buttonText="Continue To Payment"
-                customClass="bg-[#ffc200] text-[#212121] px-10 py-3 rounded-[2px] font-bold text-[15px]"
-              />
-            ) : (
+            
+            <div className="flex flex-col gap-2">
+              <button 
+                onClick={generateLink}
+                disabled={isGeneratingLink}
+                className="bg-white border border-[#2874f0] text-[#2874f0] px-4 py-2 rounded-[2px] font-bold text-[13px] shadow-sm"
+              >
+                {isGeneratingLink ? "Generating..." : "Get Payment Link"}
+              </button>
               <button 
                 onClick={() => router.push("/payment")}
                 className="bg-[#ffc200] text-[#212121] px-10 py-3 rounded-[2px] font-bold text-[15px]"
               >
                 Continue To Payment
               </button>
-            )} */}
-            <button 
-              onClick={() => router.push("/payment")}
-              className="bg-[#ffc200] text-[#212121] px-10 py-3 rounded-[2px] font-bold text-[15px]"
-            >
-              Continue To Payment
-            </button>
+            </div>
           </div>
+          
+          {/* Payment Link Display */}
+          {paymentLink && (
+            <div className="p-3 bg-[#f0f5ff] border-t border-[#2874f0] flex flex-col items-center">
+              <span className="text-[13px] font-bold text-[#212121] mb-2">Share this link with the customer to pay:</span>
+              <div className="flex w-full">
+                <input 
+                  type="text" 
+                  readOnly 
+                  value={paymentLink} 
+                  className="flex-grow p-2 text-[12px] border border-gray-300 rounded-l-[2px] outline-none"
+                />
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(paymentLink);
+                    alert("Link copied to clipboard!");
+                  }}
+                  className="bg-[#2874f0] text-white px-4 py-2 text-[12px] font-bold rounded-r-[2px]"
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
