@@ -112,14 +112,19 @@ export default function RazorpayCheckout({ cartTotal, autoPay }) {
       
       const mongoOrderId = dbOrderData.data._id;
 
-      // 2. Create order on backend (Razorpay gateway)
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payment/create-order`, {
+      // 2. Generate Razorpay Payment Link
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payment/generate-payment-link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: cartTotal,
-          currency: "INR",
-          orderId: mongoOrderId
+          orderId: mongoOrderId,
+          customerDetails: {
+            name: addressData.name,
+            phone: addressData.phone,
+            email: "customer@example.com"
+          },
+          callback_url: `${window.location.origin}/thank-you?order_id=${mongoOrderId}`
         }),
       });
 
@@ -131,67 +136,12 @@ export default function RazorpayCheckout({ cartTotal, autoPay }) {
         return;
       }
 
-      // 2. Initialize Razorpay Checkout
-      const options = {
-        key: settings.razorpayKeyId,
-        amount: data.order.amount,
-        currency: data.order.currency,
-        name: settings.logoName || "Store",
-        description: "Payment for Order",
-        order_id: data.order.id,
-        handler: async function (response) {
-          try {
-            // 3. Verify Payment Signature
-            const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/payment/verify-payment`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-              }),
-            });
+      // 3. Redirect to the Payment Link hosted by Razorpay
+      window.location.href = data.payment_link_url;
 
-            const verifyData = await verifyRes.json();
-
-            if (verifyData.success) {
-              // Redirect to thank you page on success
-              router.push(`/thank-you?order_id=${data.order.id}`);
-            } else {
-              alert("Payment verification failed.");
-            }
-          } catch (error) {
-            console.error("Verification error:", error);
-            alert("Verification error.");
-          }
-        },
-        prefill: {
-          name: addressData.name || "Customer",
-          email: "customer@example.com",
-          contact: addressData.phone || "9999999999",
-        },
-        theme: {
-          color: settings.primaryColor || "#2874f0",
-        },
-        modal: {
-          ondismiss: function() {
-            // If user closes popup, go back
-            router.back();
-          }
-        }
-      };
-
-      const rzp = new window.Razorpay(options);
-      
-      rzp.on("payment.failed", function (response) {
-        alert("Payment failed: " + response.error.description);
-      });
-      
-      rzp.open();
     } catch (error) {
       console.error("Razorpay Error:", error);
       alert("Something went wrong with the payment.");
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -199,8 +149,8 @@ export default function RazorpayCheckout({ cartTotal, autoPay }) {
   return (
     <button 
       onClick={handlePayment}
-      disabled={isProcessing || !scriptLoaded}
-      className={`w-full bg-[#ffc200] text-[#212121] px-4 py-3.5 whitespace-nowrap rounded-[2px] font-bold text-[15px] ${isProcessing || !scriptLoaded ? 'opacity-70 cursor-not-allowed' : ''}`}
+      disabled={isProcessing}
+      className={`w-full bg-[#ffc200] text-[#212121] px-4 py-3.5 whitespace-nowrap rounded-[2px] font-bold text-[15px] ${isProcessing ? 'opacity-70 cursor-not-allowed' : ''}`}
     >
       {isProcessing ? "PROCESSING..." : "PROCEED TO PAY"}
     </button>
