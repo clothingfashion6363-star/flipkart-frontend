@@ -128,7 +128,7 @@ export function AppProvider({ children, initialData }) {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
         
         // Fetch products (get all of them instead of default 40)
-        const productsRes = await fetch(`${apiUrl}/products?limit=1000`);
+        const productsRes = await fetch(`${apiUrl}/products?limit=1000`, { cache: "no-store" });
         if (productsRes.ok) {
           const data = await productsRes.json();
           setProducts(data.data || data || []);

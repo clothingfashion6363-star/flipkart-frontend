@@ -27,7 +27,7 @@ export default async function RootLayout({ children }) {
   try {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
     const [productsRes, categoriesRes, bannersRes, settingsRes] = await Promise.all([
-      fetch(`${apiUrl}/products`, { cache: "no-store" }).catch(() => null),
+      fetch(`${apiUrl}/products?limit=1000`, { cache: "no-store" }).catch(() => null),
       fetch(`${apiUrl}/categories`, { cache: "no-store" }).catch(() => null),
       fetch(`${apiUrl}/banners`, { cache: "no-store" }).catch(() => null),
       fetch(`${apiUrl}/settings`, { cache: "no-store" }).catch(() => null),
